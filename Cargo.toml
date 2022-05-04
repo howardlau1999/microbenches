@@ -4,13 +4,15 @@ version = "0.1.0"
 authors = ["Howard Lau <howardlau1999@hotmail.com>"]
 edition = "2018"
 
+[lib]
+name = "benchmarks"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[dev-dependencies]
-criterion = {version = "0.3", features = ["html_reports"]}
+[dependencies]
+criterion = {version = "0.3", features = ["html_reports", "real_blackbox"]}
 criterion-cycles-per-byte = "0.1.2"
 rand = "0.8"
-simd = "0.2"
 
 [[bench]]
 name = "div"
