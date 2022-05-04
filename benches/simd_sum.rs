@@ -6,12 +6,11 @@ use criterion::black_box;
 use criterion::criterion_group;
 use criterion::criterion_main;
 use criterion::Criterion;
-use criterion_cycles_per_byte::CyclesPerByte;
 use rand::distributions::{Distribution, Uniform};
 use rand::thread_rng;
 use std::alloc::Layout;
 
-fn simd_sum(c: &mut Criterion<CyclesPerByte>) {
+fn simd_sum(c: &mut Criterion) {
     let between = Uniform::from(10..100);
     let mut rng = thread_rng();
     let count = 1024 * 1024;
@@ -73,7 +72,7 @@ fn simd_sum(c: &mut Criterion<CyclesPerByte>) {
 
 criterion_group!(
     name = benches;
-    config = Criterion::default().with_measurement(CyclesPerByte);
+    config = Criterion::default();
     targets = simd_sum
 );
 criterion_main!(benches);

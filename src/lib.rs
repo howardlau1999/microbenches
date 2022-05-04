@@ -12,6 +12,43 @@ use std::arch::x86_64::{
 };
 use std::simd::{i32x4, i32x8};
 
+macro_rules! repeat2 {
+    ($x:expr) => {
+        $x;
+        $x;
+    };
+}
+
+macro_rules! repeat5 {
+    ($x:expr) => {
+        repeat2!($x);
+        repeat2!($x);
+        $x;
+    };
+}
+
+macro_rules! repeat4 {
+    ($x:expr) => {
+        repeat2!($x);
+        repeat2!($x);
+    };
+}
+
+macro_rules! repeat100 {
+    ($x:expr) => {
+        repeat4!(repeat5!(repeat5!($x)));
+    };
+}
+
+macro_rules! repeat8 {
+    ($x:expr) => {
+        repeat4!($x);
+        repeat4!($x);
+    };
+}
+
+pub mod mlp;
+
 pub fn no_simd(arr: *const i32, count: usize) -> i32 {
     let mut sum = 0;
     for i in 0..count {
