@@ -1,5 +1,5 @@
-use benchmarks::div_f64;
-use benchmarks::div_u64;
+use benchmarks::div::div_f64;
+use benchmarks::div::div_u64;
 use criterion::criterion_main;
 use criterion::criterion_group;
 use criterion::Criterion;

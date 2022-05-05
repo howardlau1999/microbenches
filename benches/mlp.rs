@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use benchmarks::mlp::ptr_chase;
 use benchmarks::mlp::PaddedPtr;
 use criterion::criterion_group;
@@ -9,8 +7,7 @@ use rand::prelude::*;
 
 fn mlp(c: &mut Criterion) {
     let mut group = c.benchmark_group("mlp");
-    group.measurement_time(Duration::from_secs(10));
-    let count = 1024 * 1024 * 128; // 8192MB
+    let count = 1024 * 1024 * 32; // 2048MB
     let mut rng = rand::rngs::StdRng::seed_from_u64(42);
     let mut ptrs: Vec<_> = (0..count)
         .map(|_| {
@@ -28,23 +25,27 @@ fn mlp(c: &mut Criterion) {
         ptrs[shuffled[(i - 1) as usize] as usize].next = &ptrs[shuffled[i as usize] as usize];
     }
     {
-        group.bench_function("random_ptr_chase", |b| {
-            let mut p = ptrs.as_ptr();
-            b.iter(|| {
-                ptr_chase(&mut p);
-            })
-        });
+        group
+            .throughput(criterion::Throughput::Elements(200))
+            .bench_function("random_ptr_chase", |b| {
+                let mut p = ptrs.as_ptr();
+                b.iter(|| {
+                    unsafe { ptr_chase(&mut p) };
+                })
+            });
     }
     for i in 0..count {
         ptrs[i as usize].next = &ptrs[(i + 1) % count];
     }
     {
-        group.bench_function("seq_ptr_chase", |b| {
-            let mut p = ptrs.as_ptr();
-            b.iter(|| {
-                ptr_chase(&mut p);
-            })
-        });
+        group
+            .throughput(criterion::Throughput::Elements(200))
+            .bench_function("seq_ptr_chase", |b| {
+                let mut p = ptrs.as_ptr();
+                b.iter(|| {
+                    unsafe { ptr_chase(&mut p) };
+                })
+            });
     }
     group.finish();
 }
