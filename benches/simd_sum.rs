@@ -23,6 +23,8 @@ fn simd_sum(c: &mut Criterion) {
             *arr.add(i) = between.sample(&mut rng);
         }
     }
+    let cores = core_affinity::get_core_ids().unwrap();
+    core_affinity::set_for_current(cores[0]);
 
     let mut group = c.benchmark_group("simd_sum");
     let group = group.throughput(criterion::Throughput::Elements(count as u64));

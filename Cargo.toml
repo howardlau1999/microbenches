@@ -13,6 +13,7 @@ name = "benchmarks"
 criterion = {version = "0.3", features = ["html_reports", "real_blackbox"]}
 criterion-cycles-per-byte = "0.1.2"
 rand = "0.8"
+core_affinity = "0.5"
 
 [[bench]]
 name = "div"

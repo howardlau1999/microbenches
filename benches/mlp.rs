@@ -24,6 +24,8 @@ fn mlp(c: &mut Criterion) {
     for i in 1..count {
         ptrs[shuffled[(i - 1) as usize] as usize].next = &ptrs[shuffled[i as usize] as usize];
     }
+    let cores = core_affinity::get_core_ids().unwrap();
+    core_affinity::set_for_current(cores[0]);
     {
         group
             .throughput(criterion::Throughput::Elements(200))
