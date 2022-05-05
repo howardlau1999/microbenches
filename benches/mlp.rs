@@ -1,14 +1,12 @@
-use benchmarks::mlp::ptr_chase;
+use benchmarks::mlp::{ptr_chase, multi_ptr_chase_2};
 use benchmarks::mlp::PaddedPtr;
 use criterion::criterion_group;
 use criterion::criterion_main;
 use criterion::Criterion;
 use rand::prelude::*;
 
-fn mlp(c: &mut Criterion) {
-    let mut group = c.benchmark_group("mlp");
-    let count = 1024 * 1024 * 32; // 2048MB
-    let mut rng = rand::rngs::StdRng::seed_from_u64(42);
+fn gen_random_chase(count: usize, seed:u64) -> Vec<PaddedPtr> {
+    let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
     let mut ptrs: Vec<_> = (0..count)
         .map(|_| {
             let ptr = PaddedPtr {
@@ -24,7 +22,15 @@ fn mlp(c: &mut Criterion) {
     for i in 1..count {
         ptrs[shuffled[(i - 1) as usize] as usize].next = &ptrs[shuffled[i as usize] as usize];
     }
+    ptrs
+}
+
+fn mlp(c: &mut Criterion) {
+    let mut group = c.benchmark_group("mlp");
+    let count = 1024 * 1024 * 32; // 2048MB
     let cores = core_affinity::get_core_ids().unwrap();
+    let mut ptrs = gen_random_chase(count, 19530615);
+    let ptrs2 = gen_random_chase(count, 19260817);
     core_affinity::set_for_current(cores[0]);
     {
         group
@@ -33,6 +39,16 @@ fn mlp(c: &mut Criterion) {
                 let mut p = ptrs.as_ptr();
                 b.iter(|| {
                     unsafe { ptr_chase(&mut p) };
+                })
+            });
+    }
+    {
+        group
+            .bench_function("multi_ptr_chase_2", |b| {
+                let mut p1 = ptrs.as_ptr();
+                let mut p2 = ptrs2.as_ptr();
+                b.iter(|| {
+                    unsafe { multi_ptr_chase_2([&mut p1, &mut p2]) };
                 })
             });
     }
