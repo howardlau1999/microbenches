@@ -8,8 +8,8 @@ pub struct PaddedPtr {
 pub unsafe fn ptr_chase(ptr: *mut *const PaddedPtr) {
     let mut p = *ptr;
     repeat100!(repeat2!(
-        p = *(p as *const *const PaddedPtr));
-    );
+        p = *(p as *const *const PaddedPtr)
+    ));
     *ptr = p;
 }
 
