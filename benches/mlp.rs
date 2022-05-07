@@ -1,65 +1,66 @@
-use benchmarks::mlp::{ptr_chase, multi_ptr_chase_2};
-use benchmarks::mlp::PaddedPtr;
+use std::alloc::Layout;
+use std::time::Duration;
+
+use benchmarks::mlp::ptr_chase;
+use benchmarks::mlp::Ptr;
+use criterion::black_box;
 use criterion::criterion_group;
 use criterion::criterion_main;
 use criterion::Criterion;
 use rand::prelude::*;
 
-fn gen_random_chase(count: usize, seed:u64) -> Vec<PaddedPtr> {
+fn gen_random_chase(count: usize, stride: usize, seed: u64) -> Ptr {
     let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
-    let mut ptrs: Vec<_> = (0..count)
-        .map(|_| {
-            let ptr = PaddedPtr {
-                next: 0 as *const PaddedPtr,
-                padding: [0; 7],
-            };
-            ptr
-        })
-        .collect();
-    let mut shuffled = (0..count).collect::<Vec<_>>();
-    shuffled.shuffle(&mut rng);
-    ptrs[shuffled[(count - 1) as usize] as usize].next = &ptrs[shuffled[0 as usize] as usize];
-    for i in 1..count {
-        ptrs[shuffled[(i - 1) as usize] as usize].next = &ptrs[shuffled[i as usize] as usize];
+    if stride < std::mem::size_of::<Ptr>() {
+        panic!("stride must be at least {}", std::mem::size_of::<Ptr>());
     }
-    ptrs
+    if stride % std::mem::size_of::<Ptr>() != 0 {
+        panic!(
+            "stride must be a multiple of {}",
+            std::mem::size_of::<Ptr>()
+        );
+    }
+    let bytes = stride * count;
+    let ptrs_in_a_stride = stride / std::mem::size_of::<Ptr>();
+    const MIXER_COUNT: usize = 16384;
+    let mut mixers = vec![0; MIXER_COUNT];
+    for i in 0..MIXER_COUNT {
+        let mut indices: Vec<_> = (0..ptrs_in_a_stride).collect();
+        indices.shuffle(&mut rng);
+        mixers[i] = indices[0];
+    }
+    let layout = Layout::from_size_align(bytes, std::mem::size_of::<Ptr>()).unwrap();
+    let arena = unsafe { std::alloc::alloc_zeroed(layout) as *mut Ptr };
+    let mut permutation: Vec<_> = (0..count).collect();
+    permutation.shuffle(&mut rng);
+    let mut inverse_permutation = vec![0; count];
+    for i in 0..count {
+        inverse_permutation[permutation[i]] = i;
+    }
+    for i in 0..count {
+        let next = inverse_permutation[i] + 1;
+        let next = if next == count { 0 } else { next };
+        unsafe {
+            let ptr = arena
+                .add(i * ptrs_in_a_stride + mixers[i % MIXER_COUNT]);
+            let next_ptr = arena.add(permutation[next] * ptrs_in_a_stride + mixers[permutation[next] % MIXER_COUNT]) as Ptr;
+            ptr.write(next_ptr);
+        };
+    }
+    unsafe { arena.add(mixers[0]) as Ptr }
 }
 
 fn mlp(c: &mut Criterion) {
     let mut group = c.benchmark_group("mlp");
-    let count = 1024 * 1024 * 32; // 2048MB
+    let count = 1024 * 1024; // 2048MB
     let cores = core_affinity::get_core_ids().unwrap();
-    let mut ptrs = gen_random_chase(count, 19530615);
-    let ptrs2 = gen_random_chase(count, 19260817);
+    let ptrs = gen_random_chase(count, 2048, 192608179845);
     core_affinity::set_for_current(cores[0]);
     {
+        let mut p = ptrs;
         group
             .throughput(criterion::Throughput::Elements(200))
-            .bench_function("random_ptr_chase", |b| {
-                let mut p = ptrs.as_ptr();
-                b.iter(|| {
-                    unsafe { ptr_chase(&mut p) };
-                })
-            });
-    }
-    {
-        group
-            .bench_function("multi_ptr_chase_2", |b| {
-                let mut p1 = ptrs.as_ptr();
-                let mut p2 = ptrs2.as_ptr();
-                b.iter(|| {
-                    unsafe { multi_ptr_chase_2([&mut p1, &mut p2]) };
-                })
-            });
-    }
-    for i in 0..count {
-        ptrs[i as usize].next = &ptrs[(i + 1) % count];
-    }
-    {
-        group
-            .throughput(criterion::Throughput::Elements(200))
-            .bench_function("seq_ptr_chase", |b| {
-                let mut p = ptrs.as_ptr();
+            .bench_function("random_ptr_chase", |b| {        
                 b.iter(|| {
                     unsafe { ptr_chase(&mut p) };
                 })
