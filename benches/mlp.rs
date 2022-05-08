@@ -1,9 +1,7 @@
 use std::alloc::Layout;
-use std::time::Duration;
 
 use benchmarks::mlp::ptr_chase;
 use benchmarks::mlp::Ptr;
-use criterion::black_box;
 use criterion::criterion_group;
 use criterion::criterion_main;
 use criterion::Criterion;
@@ -52,9 +50,9 @@ fn gen_random_chase(count: usize, stride: usize, seed: u64) -> Ptr {
 
 fn mlp(c: &mut Criterion) {
     let mut group = c.benchmark_group("mlp");
-    let count = 1024 * 1024; // 2048MB
+    let count = 1024 * 1024 * 32; // 2048MB
     let cores = core_affinity::get_core_ids().unwrap();
-    let ptrs = gen_random_chase(count, 2048, 192608179845);
+    let ptrs = gen_random_chase(count, 64, 192608179845);
     core_affinity::set_for_current(cores[0]);
     {
         let mut p = ptrs;
